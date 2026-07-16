@@ -1,0 +1,454 @@
+"use client";
+
+import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import Logo from "../components/Logo";
+import { plans, planById, fmt } from "../lib/plans";
+import { createProject, type Project } from "../lib/projects";
+import { paypalMeLink } from "../lib/payment";
+
+export default function StartPage() {
+  return (
+    <Suspense fallback={<Shell><div className="py-20 text-center text-ink/40">Loading…</div></Shell>}>
+      <StartFlow />
+    </Suspense>
+  );
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="relative min-h-screen">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full opacity-60 blur-[130px]"
+        style={{
+          background:
+            "radial-gradient(50% 50% at 50% 50%, rgba(184,201,255,0.5) 0%, rgba(184,201,255,0) 70%)",
+        }}
+      />
+      <div className="container-x relative py-6">
+        <div className="flex items-center justify-between">
+          <Logo />
+          <Link href="/" className="text-sm text-ink/50 hover:text-ink">
+            ← Back to site
+          </Link>
+        </div>
+        {children}
+      </div>
+    </main>
+  );
+}
+
+type Step = 0 | 1 | 2 | 3;
+
+function StartFlow() {
+  const params = useSearchParams();
+  const initialPlan = params.get("plan") || "signature";
+
+  const [step, setStep] = useState<Step>(0);
+  const [planId, setPlanId] = useState(initialPlan);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [brief, setBrief] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [initiated, setInitiated] = useState(false);
+  const [created, setCreated] = useState<Project | null>(null);
+
+  useEffect(() => {
+    if (planById(initialPlan)) setPlanId(initialPlan);
+  }, [initialPlan]);
+
+  const plan = planById(planId) ?? plans[1];
+  const deposit = Math.round(plan.price / 2);
+  const balance = plan.price - deposit;
+
+  const canContinueDetails = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
+
+  // 1) Open PayPal.me with the deposit amount pre-filled (new tab).
+  const openPayPal = () => {
+    window.open(paypalMeLink(deposit), "_blank", "noopener,noreferrer");
+    setInitiated(true);
+  };
+
+  // 2) Once the client has paid in PayPal, they confirm and we mint the code.
+  const confirmPaid = () => {
+    setProcessing(true);
+    window.setTimeout(() => {
+      const project = createProject({
+        client: name.trim(),
+        plan: plan.name,
+        service: plan.service,
+        total: plan.price,
+      });
+      setCreated(project);
+      setProcessing(false);
+      setStep(3);
+    }, 700);
+  };
+
+  return (
+    <Shell>
+      {step < 3 && <Steps step={step} />}
+
+      <div className="mx-auto mt-8 max-w-3xl">
+        {step === 0 && (
+          <Card
+            title="Choose your plan"
+            subtitle="Fixed scope, fixed price. You can change this before you pay."
+          >
+            <div className="grid gap-3">
+              {plans.map((p) => {
+                const active = p.id === planId;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setPlanId(p.id)}
+                    className={`flex items-center justify-between rounded-2xl border p-5 text-left transition-all ${
+                      active
+                        ? "border-ink bg-white shadow-[0_20px_50px_-30px_rgba(11,11,12,0.4)]"
+                        : "border-ink/10 bg-white/50 hover:border-ink/25"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                          active ? "border-ink bg-ink" : "border-ink/25"
+                        }`}
+                      >
+                        {active && <span className="h-2 w-2 rounded-full bg-white" />}
+                      </span>
+                      <div>
+                        <p className="font-semibold">
+                          {p.name}{" "}
+                          {p.best && (
+                            <span className="ml-1 rounded-full bg-periwinkle-100 px-2 py-0.5 text-[10px] font-medium text-periwinkle-500">
+                              Popular
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-sm text-ink/50">{p.tagline}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">{fmt(p.price)}</p>
+                      <p className="text-xs text-ink/40">{fmt(p.price / 2)} to start</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <FooterBar>
+              <span className="text-sm text-ink/50">
+                {plan.name} · {plan.timeline}
+              </span>
+              <button className="btn-primary" onClick={() => setStep(1)}>
+                Continue
+              </button>
+            </FooterBar>
+          </Card>
+        )}
+
+        {step === 1 && (
+          <Card
+            title="Tell us about the project"
+            subtitle="A quick brief so we can start without a kickoff call."
+          >
+            <div className="grid gap-4">
+              <Field label="Your name">
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Marisol Peña"
+                  className="input"
+                />
+              </Field>
+              <Field label="Email">
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  type="email"
+                  className="input"
+                />
+              </Field>
+              <Field label="What are we building?" hint="Optional but helpful">
+                <textarea
+                  value={brief}
+                  onChange={(e) => setBrief(e.target.value)}
+                  placeholder="A website for my botanical skincare brand — clean, warm, with a shop…"
+                  rows={4}
+                  className="input resize-none"
+                />
+              </Field>
+            </div>
+            <FooterBar>
+              <button className="text-sm text-ink/50 hover:text-ink" onClick={() => setStep(0)}>
+                ← Back
+              </button>
+              <button
+                className="btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!canContinueDetails}
+                onClick={() => setStep(2)}
+              >
+                Continue to deposit
+              </button>
+            </FooterBar>
+          </Card>
+        )}
+
+        {step === 2 && (
+          <Card title="Pay your 50% deposit" subtitle="This starts your project and creates your code.">
+            <div className="grid gap-6 sm:grid-cols-5">
+              {/* summary */}
+              <div className="sm:col-span-2">
+                <div className="rounded-2xl bg-paper p-5">
+                  <p className="text-xs text-ink/40">Order summary</p>
+                  <p className="mt-1 font-semibold">{plan.name} plan</p>
+                  <p className="text-sm text-ink/50">{plan.service}</p>
+                  <div className="mt-4 space-y-2 border-t border-ink/8 pt-4 text-sm">
+                    <Row label="Project total" value={fmt(plan.price)} />
+                    <Row label="Due today (50%)" value={fmt(deposit)} strong />
+                    <Row label="On launch (50%)" value={fmt(balance)} muted />
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-ink/40">
+                  You only ever pay half up front. The balance is due when your
+                  project launches — never before.
+                </p>
+              </div>
+
+              {/* PayPal checkout */}
+              <div className="sm:col-span-3">
+                <div className="rounded-2xl border border-ink/10 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Pay securely with PayPal</p>
+                    <PayPalWordmark />
+                  </div>
+
+                  {!initiated ? (
+                    <>
+                      <p className="mt-3 text-sm text-ink/55">
+                        You'll pay the <span className="font-medium text-ink">{fmt(deposit)}</span>{" "}
+                        deposit through PayPal — card or PayPal balance, your
+                        choice. The amount is pre-filled for you.
+                      </p>
+                      <button
+                        onClick={openPayPal}
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#0070E0] px-6 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#0060c0]"
+                      >
+                        Pay {fmt(deposit)} with PayPal
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M4 12L12 4M6 4h6v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-3 rounded-xl bg-periwinkle-50 p-4">
+                        <p className="text-sm font-medium text-ink">PayPal opened in a new tab.</p>
+                        <p className="mt-1 text-sm text-ink/55">
+                          Complete the {fmt(deposit)} payment there, then come
+                          back and confirm below to create your project.
+                        </p>
+                      </div>
+                      <button
+                        onClick={confirmPaid}
+                        disabled={processing}
+                        className="btn-primary mt-4 w-full disabled:opacity-70"
+                      >
+                        {processing ? (
+                          <span className="inline-flex items-center gap-2">
+                            <Spinner /> Creating your project…
+                          </span>
+                        ) : (
+                          <>I've completed my payment</>
+                        )}
+                      </button>
+                      <button
+                        onClick={openPayPal}
+                        className="mt-2 w-full text-center text-xs text-ink/45 hover:text-ink"
+                      >
+                        Re-open PayPal
+                      </button>
+                    </>
+                  )}
+
+                  <p className="mt-3 text-center text-xs text-ink/40">
+                    Payments go to OakStudio via PayPal. We confirm your deposit
+                    and kick off your project.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <FooterBar>
+              <button className="text-sm text-ink/50 hover:text-ink" onClick={() => setStep(1)}>
+                ← Back
+              </button>
+              <span />
+            </FooterBar>
+          </Card>
+        )}
+
+        {step === 3 && created && <Success project={created} deposit={deposit} />}
+      </div>
+    </Shell>
+  );
+}
+
+function Success({ project, deposit }: { project: Project; deposit: number }) {
+  return (
+    <div className="mx-auto max-w-xl text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-ink text-white">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M5 12.5l4 4 10-10.5"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+      <h1 className="mt-6 text-3xl font-semibold tracking-tight">You're all set 🎉</h1>
+      <p className="mt-3 text-ink/55">
+        Thanks for your {fmt(deposit)} deposit! Your project is live — save your
+        code, it's how you'll track everything. We'll confirm your PayPal payment
+        and get started right away.
+      </p>
+
+      <div className="mt-8 rounded-3xl border border-ink/10 bg-white p-8 shadow-[0_30px_70px_-40px_rgba(11,11,12,0.35)]">
+        <p className="text-xs uppercase tracking-widest text-ink/40">Your project code</p>
+        <p className="mt-2 font-display text-5xl font-light tracking-tight">{project.code}</p>
+        <p className="mt-2 text-sm text-ink/50">{project.plan} · {project.service}</p>
+        <Link href={`/dashboard?code=${project.code}`} className="btn-primary mt-6 w-full">
+          Open my dashboard
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M3 8h10M9 4l4 4-4 4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Link>
+      </div>
+      <p className="mt-4 text-xs text-ink/40">
+        We've also (conceptually) emailed your code to your inbox.
+      </p>
+    </div>
+  );
+}
+
+/* ---------- little building blocks ---------- */
+
+function Steps({ step }: { step: Step }) {
+  const labels = ["Plan", "Brief", "Deposit"];
+  return (
+    <div className="mx-auto mt-10 flex max-w-md items-center justify-between">
+      {labels.map((l, i) => (
+        <div key={l} className="flex flex-1 items-center">
+          <div className="flex items-center gap-2">
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors ${
+                i <= step ? "bg-ink text-white" : "bg-ink/8 text-ink/40"
+              }`}
+            >
+              {i < step ? "✓" : i + 1}
+            </span>
+            <span className={`text-sm ${i <= step ? "text-ink" : "text-ink/40"}`}>{l}</span>
+          </div>
+          {i < labels.length - 1 && (
+            <span
+              className={`mx-3 h-px flex-1 ${i < step ? "bg-ink" : "bg-ink/10"}`}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Card({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl border border-ink/8 bg-white/70 p-7 shadow-[0_30px_80px_-50px_rgba(11,11,12,0.3)] backdrop-blur-sm sm:p-9">
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <p className="mt-1 text-sm text-ink/50">{subtitle}</p>
+      <div className="mt-6">{children}</div>
+    </div>
+  );
+}
+
+function FooterBar({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-7 flex items-center justify-between border-t border-ink/8 pt-6">
+      {children}
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 flex items-center justify-between text-sm font-medium text-ink/70">
+        {label}
+        {hint && <span className="text-xs font-normal text-ink/35">{hint}</span>}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function Row({
+  label,
+  value,
+  strong,
+  muted,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={muted ? "text-ink/40" : "text-ink/60"}>{label}</span>
+      <span className={strong ? "font-semibold" : muted ? "text-ink/50" : ""}>{value}</span>
+    </div>
+  );
+}
+
+function PayPalWordmark() {
+  return (
+    <span className="select-none text-sm font-bold italic tracking-tight">
+      <span className="text-[#003087]">Pay</span>
+      <span className="text-[#0070E0]">Pal</span>
+    </span>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+      <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}

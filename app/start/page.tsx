@@ -7,6 +7,7 @@ import Logo from "../components/Logo";
 import { plans, planById, fmt } from "../lib/plans";
 import { createProject, type Project } from "../lib/projects";
 import { paypalMeLink } from "../lib/payment";
+import PayPalButtons from "../components/PayPalButtons";
 
 export default function StartPage() {
   return (
@@ -65,25 +66,32 @@ function StartFlow() {
 
   const canContinueDetails = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
 
+  const mintProject = () => {
+    const project = createProject({
+      client: name.trim(),
+      plan: plan.name,
+      service: plan.service,
+      total: plan.price,
+    });
+    setCreated(project);
+    setStep(3);
+  };
+
+  // Real PayPal checkout captured the payment — mint the code right away.
+  const onPaidWithPayPal = () => mintProject();
+
+  // ── PayPal.me fallback (used only if the PayPal SDK can't load) ──
   // 1) Open PayPal.me with the deposit amount pre-filled (new tab).
   const openPayPal = () => {
     window.open(paypalMeLink(deposit), "_blank", "noopener,noreferrer");
     setInitiated(true);
   };
-
-  // 2) Once the client has paid in PayPal, they confirm and we mint the code.
+  // 2) Client confirms they paid, then we mint the code.
   const confirmPaid = () => {
     setProcessing(true);
     window.setTimeout(() => {
-      const project = createProject({
-        client: name.trim(),
-        plan: plan.name,
-        service: plan.service,
-        total: plan.price,
-      });
-      setCreated(project);
+      mintProject();
       setProcessing(false);
-      setStep(3);
     }, 700);
   };
 
@@ -226,57 +234,63 @@ function StartFlow() {
                     <PayPalWordmark />
                   </div>
 
-                  {!initiated ? (
-                    <>
-                      <p className="mt-3 text-sm text-ink/55">
-                        You'll pay the <span className="font-medium text-ink">{fmt(deposit)}</span>{" "}
-                        deposit through PayPal — card or PayPal balance, your
-                        choice. The amount is pre-filled for you.
-                      </p>
-                      <button
-                        onClick={openPayPal}
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#0070E0] px-6 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#0060c0]"
-                      >
-                        Pay {fmt(deposit)} with PayPal
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M4 12L12 4M6 4h6v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="mt-3 rounded-xl bg-periwinkle-50 p-4">
-                        <p className="text-sm font-medium text-ink">PayPal opened in a new tab.</p>
-                        <p className="mt-1 text-sm text-ink/55">
-                          Complete the {fmt(deposit)} payment there, then come
-                          back and confirm below to create your project.
-                        </p>
-                      </div>
-                      <button
-                        onClick={confirmPaid}
-                        disabled={processing}
-                        className="btn-primary mt-4 w-full disabled:opacity-70"
-                      >
-                        {processing ? (
-                          <span className="inline-flex items-center gap-2">
-                            <Spinner /> Creating your project…
-                          </span>
+                  <p className="mt-3 text-sm text-ink/55">
+                    Pay the <span className="font-medium text-ink">{fmt(deposit)}</span>{" "}
+                    deposit with PayPal or card. Your project code is created the
+                    moment the payment clears.
+                  </p>
+
+                  <div className="mt-4">
+                    <PayPalButtons
+                      amount={deposit}
+                      onPaid={onPaidWithPayPal}
+                      fallback={
+                        !initiated ? (
+                          <button
+                            onClick={openPayPal}
+                            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#0070E0] px-6 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#0060c0]"
+                          >
+                            Pay {fmt(deposit)} with PayPal
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <path d="M4 12L12 4M6 4h6v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
                         ) : (
-                          <>I've completed my payment</>
-                        )}
-                      </button>
-                      <button
-                        onClick={openPayPal}
-                        className="mt-2 w-full text-center text-xs text-ink/45 hover:text-ink"
-                      >
-                        Re-open PayPal
-                      </button>
-                    </>
-                  )}
+                          <>
+                            <div className="rounded-xl bg-periwinkle-50 p-4">
+                              <p className="text-sm font-medium text-ink">PayPal opened in a new tab.</p>
+                              <p className="mt-1 text-sm text-ink/55">
+                                Complete the {fmt(deposit)} payment there, then
+                                come back and confirm below.
+                              </p>
+                            </div>
+                            <button
+                              onClick={confirmPaid}
+                              disabled={processing}
+                              className="btn-primary mt-4 w-full disabled:opacity-70"
+                            >
+                              {processing ? (
+                                <span className="inline-flex items-center gap-2">
+                                  <Spinner /> Creating your project…
+                                </span>
+                              ) : (
+                                <>I've completed my payment</>
+                              )}
+                            </button>
+                            <button
+                              onClick={openPayPal}
+                              className="mt-2 w-full text-center text-xs text-ink/45 hover:text-ink"
+                            >
+                              Re-open PayPal
+                            </button>
+                          </>
+                        )
+                      }
+                    />
+                  </div>
 
                   <p className="mt-3 text-center text-xs text-ink/40">
-                    Payments go to OakStudio via PayPal. We confirm your deposit
-                    and kick off your project.
+                    Payments go to OakStudio via PayPal. Secure checkout.
                   </p>
                 </div>
               </div>

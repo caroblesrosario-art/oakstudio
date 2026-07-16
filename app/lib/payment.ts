@@ -19,7 +19,8 @@ export const PAYPALME_USER = "oakstudio";
 //
 // Leave empty ("") to fall back to the simpler PayPal.me flow.
 // ─────────────────────────────────────────────────────────────
-export const PAYPAL_CLIENT_ID = "";
+export const PAYPAL_CLIENT_ID =
+  "AcUBO3CBKO2sI37K86xfrFDCk65WK3YsbZCQE-cCaMbpVOPS2Y8WkvpyFS6IHMFDGbr8YgJy5avswhNc";
 
 export const PAYPAL_ENABLED = PAYPAL_CLIENT_ID.trim().length > 0;
 

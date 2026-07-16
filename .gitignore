@@ -27,3 +27,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# CI workflow — re-enable once gh has the "workflow" scope
+.github/workflows/

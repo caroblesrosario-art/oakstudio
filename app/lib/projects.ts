@@ -42,6 +42,7 @@ export interface Brief {
   branding?: string;
   goal?: string;
   audience?: string;
+  budget?: string;
   references?: string;
   notes?: string;
   moodboard?: string[]; // image URLs
@@ -172,6 +173,7 @@ export interface NewProjectInput {
   service: string;
   total: number;
   brief?: Brief;
+  custom?: boolean; // quote-based request (no upfront payment)
 }
 
 export async function createProject(input: NewProjectInput): Promise<Project> {
@@ -185,22 +187,26 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
     service: input.service,
     total: input.total,
     currency: "USD",
-    progress: 8,
+    progress: input.custom ? 0 : 8,
     startedAt: today(),
-    eta: "~4 weeks",
+    eta: input.custom ? "Quote in ~2 days" : "~4 weeks",
     stages: (() => {
       const s = baseStages(0);
       s[0].date = "Today";
       return s;
     })(),
-    payments: [
-      { label: "Deposit — 50% to start", amount: deposit, status: "paid", date: today() },
-      { label: "Balance — 50% on launch", amount: input.total - deposit, status: "scheduled", date: "Due at launch" },
-    ],
+    payments: input.custom
+      ? [{ label: "Custom quote — pending", amount: 0, status: "scheduled", date: "After we scope it" }]
+      : [
+          { label: "Deposit — 50% to start", amount: deposit, status: "paid", date: today() },
+          { label: "Balance — 50% on launch", amount: input.total - deposit, status: "scheduled", date: "Due at launch" },
+        ],
     updates: [
-      { date: today(), title: "Project created 🎉", body: "Your deposit is confirmed and your brief is queued. We'll post your first update here — check back anytime with your code." },
+      input.custom
+        ? { date: today(), title: "Custom request received 🎉", body: "Thanks! We're reviewing what you need and will send a custom quote shortly. Track it anytime with your code." }
+        : { date: today(), title: "Project created 🎉", body: "Your deposit is confirmed and your brief is queued. We'll post your first update here — check back anytime with your code." },
     ],
-    files: [{ name: "Brief template.pdf", kind: "doc", date: today() }],
+    files: input.custom ? [] : [{ name: "Brief template.pdf", kind: "doc", date: today() }],
     brief: input.brief,
     previewUrl: undefined,
     comments: [],

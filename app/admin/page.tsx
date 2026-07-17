@@ -128,7 +128,11 @@ function AdminBoard() {
             </div>
             <div className="flex items-center gap-6">
               <div className="text-right">
-                <p className="text-sm font-semibold">{fmt(paidOf(p))}<span className="text-ink/40"> / {fmt(p.total)}</span></p>
+                {p.total > 0 ? (
+                  <p className="text-sm font-semibold">{fmt(paidOf(p))}<span className="text-ink/40"> / {fmt(p.total)}</span></p>
+                ) : (
+                  <p className="text-sm font-semibold text-periwinkle-500">Custom · quote</p>
+                )}
                 <p className="text-xs text-ink/40">{p.progress}% · {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : p.startedAt}</p>
               </div>
               <span className="text-ink/30">→</span>
@@ -202,6 +206,7 @@ function Detail({
             <BriefItem label="Vibe" value={b.vibe} />
             <BriefItem label="Branding" value={b.branding} />
             <BriefItem label="Goal" value={b.goal} />
+            <BriefItem label="Budget" value={b.budget} />
             <BriefItem label="References" value={b.references} />
             <BriefItem label="Notes" value={b.notes} />
           </div>

@@ -61,8 +61,30 @@ export const plans: Plan[] = [
   },
 ];
 
+// A custom, quote-based request — for people with exact needs that don't fit
+// the fixed plans, or who aren't sure yet. No upfront price; we scope + quote.
+export const customPlan: Plan = {
+  id: "custom",
+  name: "Custom",
+  tagline: "Something specific in mind — or not sure yet? We'll scope it with you.",
+  price: 0,
+  service: "Custom project",
+  timeline: "Quote in ~2 days",
+  features: [
+    "Anything not covered by the plans",
+    "Tell us what you need (or what you're unsure about)",
+    "We review and send a custom quote",
+    "No payment until you approve the scope",
+  ],
+};
+
 export function planById(id: string): Plan | undefined {
+  if (id === "custom") return customPlan;
   return plans.find((p) => p.id === id);
+}
+
+export function isCustom(id: string): boolean {
+  return id === "custom";
 }
 
 export function fmt(n: number, currency = "USD"): string {

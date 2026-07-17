@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Logo from "../components/Logo";
-import { plans, planById, fmt } from "../lib/plans";
+import { plans, planById, customPlan, fmt } from "../lib/plans";
 import { createProject, type Project } from "../lib/projects";
 import { paypalMeLink } from "../lib/payment";
 import { deliverOrder } from "../lib/feedback";
@@ -66,12 +66,14 @@ function StartFlow() {
   const [processing, setProcessing] = useState(false);
   const [initiated, setInitiated] = useState(false);
   const [created, setCreated] = useState<Project | null>(null);
+  const [bBudget, setBBudget] = useState("");
 
   useEffect(() => {
     if (planById(initialPlan)) setPlanId(initialPlan);
   }, [initialPlan]);
 
   const plan = planById(planId) ?? plans[1];
+  const custom = plan.id === "custom";
   const deposit = Math.round(plan.price / 2);
   const balance = plan.price - deposit;
 
@@ -98,6 +100,7 @@ function StartFlow() {
       vibe: bVibe || undefined,
       branding: bBranding || undefined,
       goal: bGoal || undefined,
+      budget: custom ? bBudget || undefined : undefined,
       references: refs.trim() || undefined,
       notes: brief.trim() || undefined,
       moodboard: moodboard.length ? moodboard : undefined,
@@ -109,6 +112,7 @@ function StartFlow() {
       service: plan.service,
       total: plan.price,
       brief: briefData,
+      custom,
     });
     // Notify the studio of the new order (email via Formspree, or mailto fallback).
     void deliverOrder({
@@ -145,7 +149,7 @@ function StartFlow() {
 
   return (
     <Shell>
-      {step < 3 && <Steps step={step} />}
+      {step < 3 && <Steps step={step} custom={custom} />}
 
       <div className="mx-auto mt-8 max-w-3xl">
         {step === 0 && (
@@ -193,6 +197,30 @@ function StartFlow() {
                   </button>
                 );
               })}
+
+              {/* Custom / not sure */}
+              <button
+                onClick={() => setPlanId("custom")}
+                className={`flex items-center justify-between rounded-2xl border border-dashed p-5 text-left transition-all ${
+                  custom
+                    ? "border-ink bg-white shadow-[0_20px_50px_-30px_rgba(11,11,12,0.4)]"
+                    : "border-ink/25 bg-white/40 hover:border-ink/40"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${custom ? "border-ink bg-ink" : "border-ink/25"}`}>
+                    {custom && <span className="h-2 w-2 rounded-full bg-white" />}
+                  </span>
+                  <div>
+                    <p className="font-semibold">Custom / Not sure</p>
+                    <p className="text-sm text-ink/50">Something exact that isn't listed, or you're just exploring.</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-periwinkle-500">Get a quote</p>
+                  <p className="text-xs text-ink/40">No upfront payment</p>
+                </div>
+              </button>
             </div>
             <FooterBar>
               <span className="text-sm text-ink/50">
@@ -255,6 +283,15 @@ function StartFlow() {
                 onChange={setBGoal}
                 options={["Get more clients", "Sell products", "Look more credible", "Launch something fast", "Replace an old site"]}
               />
+
+              {custom && (
+                <ChipGroup
+                  label="Rough budget? (helps us scope it right)"
+                  value={bBudget}
+                  onChange={setBBudget}
+                  options={["Under $1k", "$1k–3k", "$3k–6k", "$6k–10k", "$10k+", "Not sure yet"]}
+                />
+              )}
 
               <Field label="Any sites or brands you love?" hint="Optional — paste links or names">
                 <input
@@ -338,14 +375,17 @@ function StartFlow() {
                 disabled={!canContinueDetails}
                 onClick={() => setStep(2)}
               >
-                Continue to deposit
+                {custom ? "Continue to request" : "Continue to deposit"}
               </button>
             </FooterBar>
           </Card>
         )}
 
         {step === 2 && minting && (
-          <Card title="Confirming your payment…" subtitle="Hang tight — we're creating your project and code.">
+          <Card
+            title={custom ? "Sending your request…" : "Confirming your payment…"}
+            subtitle="Hang tight — we're creating your project and code."
+          >
             <div className="flex flex-col items-center justify-center gap-3 py-12 text-ink/50">
               <Spinner />
               <p className="text-sm">Setting things up…</p>
@@ -353,7 +393,52 @@ function StartFlow() {
           </Card>
         )}
 
-        {step === 2 && !minting && (
+        {/* Custom request — no upfront payment */}
+        {step === 2 && !minting && custom && (
+          <Card
+            title="Send your custom request"
+            subtitle="No payment now — we'll review what you need and send a custom quote."
+          >
+            <div className="rounded-2xl bg-paper p-5">
+              <p className="text-xs text-ink/40">Request summary</p>
+              <p className="mt-1 font-semibold">Custom project</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {[bType, bVibe, bGoal, bBudget].filter(Boolean).map((v) => (
+                  <span key={v} className="rounded-full border border-ink/10 bg-white px-3 py-1 text-ink/60">{v}</span>
+                ))}
+                {moodboard.length > 0 && (
+                  <span className="rounded-full border border-ink/10 bg-white px-3 py-1 text-ink/60">
+                    {moodboard.length} moodboard image{moodboard.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="mt-4 rounded-2xl border border-ink/10 p-5">
+              <p className="text-sm text-ink/60">
+                We'll get your request instantly and send a custom quote to{" "}
+                <span className="font-medium text-ink">{email.trim() || "your email"}</span>{" "}
+                — usually within a couple of days. You'll get a code to track it right away.
+              </p>
+              <button onClick={() => void mintProject()} className="btn-primary mt-4 w-full">
+                Send my request
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <p className="mt-3 text-center text-xs text-ink/40">
+                Free · No commitment until you approve the quote.
+              </p>
+            </div>
+            <FooterBar>
+              <button className="text-sm text-ink/50 hover:text-ink" onClick={() => setStep(1)}>
+                ← Back
+              </button>
+              <span />
+            </FooterBar>
+          </Card>
+        )}
+
+        {step === 2 && !minting && !custom && (
           <Card title="Pay your 50% deposit" subtitle="This starts your project and creates your code.">
             <div className="grid gap-6 sm:grid-cols-5">
               {/* summary */}
@@ -459,6 +544,7 @@ function StartFlow() {
 }
 
 function Success({ project, deposit }: { project: Project; deposit: number }) {
+  const custom = project.plan === "Custom" || project.total === 0;
   return (
     <div className="mx-auto max-w-xl text-center">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-ink text-white">
@@ -472,11 +558,23 @@ function Success({ project, deposit }: { project: Project; deposit: number }) {
           />
         </svg>
       </div>
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight">You're all set 🎉</h1>
+      <h1 className="mt-6 text-3xl font-semibold tracking-tight">
+        {custom ? "Request sent 🎉" : "You're all set 🎉"}
+      </h1>
       <p className="mt-3 text-ink/55">
-        Thanks for your {fmt(deposit)} deposit! Your project is live — save your
-        code, it's how you'll track everything. We'll confirm your PayPal payment
-        and get started right away.
+        {custom ? (
+          <>
+            Thanks! We've got your custom request and we're reviewing it now.
+            We'll send a quote to your email soon. Save your code — you can track
+            the status anytime.
+          </>
+        ) : (
+          <>
+            Thanks for your {fmt(deposit)} deposit! Your project is live — save
+            your code, it's how you'll track everything. We'll confirm your
+            PayPal payment and get started right away.
+          </>
+        )}
       </p>
 
       <div className="mt-8 rounded-3xl border border-ink/10 bg-white p-8 shadow-[0_30px_70px_-40px_rgba(11,11,12,0.35)]">
@@ -505,8 +603,8 @@ function Success({ project, deposit }: { project: Project; deposit: number }) {
 
 /* ---------- little building blocks ---------- */
 
-function Steps({ step }: { step: Step }) {
-  const labels = ["Plan", "Brief", "Deposit"];
+function Steps({ step, custom }: { step: Step; custom?: boolean }) {
+  const labels = ["Plan", "Brief", custom ? "Request" : "Deposit"];
   return (
     <div className="mx-auto mt-10 flex max-w-md items-center justify-between">
       {labels.map((l, i) => (

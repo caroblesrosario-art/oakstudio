@@ -106,13 +106,31 @@ export default function Pricing() {
         </div>
 
         <Reveal delay={100}>
-          <p className="mt-8 text-center text-sm text-ink/45">
-            Not sure which fits?{" "}
-            <Link href="/start" className="font-medium text-ink underline underline-offset-4">
-              Scope a custom project
-            </Link>{" "}
-            and we'll shape a plan around it.
-          </p>
+          <div className="mt-5 flex flex-col items-start justify-between gap-5 rounded-3xl border border-ink/10 bg-white/60 p-7 sm:flex-row sm:items-center sm:p-8">
+            <div className="max-w-xl">
+              <div className="flex items-center gap-2">
+                <Asterisk className="h-4 w-4 text-periwinkle-500" />
+                <h3 className="text-xl font-semibold tracking-tight">
+                  Something else in mind?
+                </h3>
+              </div>
+              <p className="mt-2 text-sm text-ink/55">
+                Have an <span className="text-ink">exact idea</span> that isn't
+                listed, or <span className="text-ink">not sure where to start</span>?
+                Tell us what you need — we'll review it and send a custom quote.
+                No payment until you approve.
+              </p>
+            </div>
+            <Link
+              href="/start?plan=custom"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-ink/15 px-6 py-3.5 text-sm font-medium text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-ink/40"
+            >
+              Start a custom request
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+          </div>
         </Reveal>
       </div>
     </section>

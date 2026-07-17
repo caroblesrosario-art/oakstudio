@@ -35,6 +35,23 @@ export interface Update {
   body: string;
 }
 
+export interface Comment {
+  author: "client" | "studio";
+  date: string;
+  body: string;
+}
+
+// Guided brief — captured as simple selections so clients don't face a blank box.
+export interface Brief {
+  type?: string;
+  vibe?: string;
+  branding?: string;
+  goal?: string;
+  audience?: string;
+  references?: string;
+  notes?: string;
+}
+
 export interface Project {
   code: string;
   client: string;
@@ -49,9 +66,12 @@ export interface Project {
   payments: Payment[];
   updates: Update[];
   files: { name: string; kind: string; date: string }[];
+  brief?: Brief;
+  previewUrl?: string;
+  comments: Comment[];
 }
 
-const STORAGE_KEY = "oakstudio.projects.v1";
+const STORAGE_KEY = "oakstudio.projects.v2";
 
 function baseStages(activeIndex: number): Stage[] {
   const defs: { key: StageKey; label: string; description: string }[] = [
@@ -112,6 +132,26 @@ function demoProject(): Project {
       { name: "Full UI — Figma", kind: "design", date: "Jul 05" },
       { name: "Brief & scope.pdf", kind: "doc", date: "Jun 28" },
     ],
+    previewUrl: "https://caroblesrosario-art.github.io/oakstudio/",
+    brief: {
+      type: "Website",
+      vibe: "Warm & editorial",
+      branding: "Just a logo",
+      goal: "Sell products",
+      audience: "Skincare shoppers, 25–45",
+    },
+    comments: [
+      {
+        author: "client",
+        date: "Jul 12, 2026",
+        body: "Love the homepage! Could the hero photo feel a little warmer? And the shop button could be bigger 🙂",
+      },
+      {
+        author: "studio",
+        date: "Jul 12, 2026",
+        body: "Great notes — warming up the hero and bumping the shop button now. Refresh the preview in a bit!",
+      },
+    ],
   };
 }
 
@@ -164,6 +204,7 @@ export interface NewProjectInput {
   plan: string;
   service: string;
   total: number;
+  brief?: Brief;
 }
 
 export function createProject(input: NewProjectInput): Project {
@@ -199,9 +240,25 @@ export function createProject(input: NewProjectInput): Project {
       },
     ],
     files: [{ name: "Brief template.pdf", kind: "doc", date: today() }],
+    brief: input.brief,
+    previewUrl: undefined,
+    comments: [],
   };
 
   all[code] = project;
+  write(all);
+  return project;
+}
+
+/** Append a client comment to a project and persist it. */
+export function addComment(code: string, body: string): Project | null {
+  const all = read();
+  ensureSeed(all);
+  const key = code.trim().toUpperCase();
+  const project = all[key];
+  if (!project) return null;
+  if (!project.comments) project.comments = [];
+  project.comments.push({ author: "client", date: today(), body: body.trim() });
   write(all);
   return project;
 }

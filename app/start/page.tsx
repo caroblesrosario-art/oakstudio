@@ -52,6 +52,12 @@ function StartFlow() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [brief, setBrief] = useState("");
+  // Guided brief selections (so clients never face a blank box)
+  const [bType, setBType] = useState("");
+  const [bVibe, setBVibe] = useState("");
+  const [bBranding, setBBranding] = useState("");
+  const [bGoal, setBGoal] = useState("");
+  const [refs, setRefs] = useState("");
   const [processing, setProcessing] = useState(false);
   const [initiated, setInitiated] = useState(false);
   const [created, setCreated] = useState<Project | null>(null);
@@ -72,6 +78,14 @@ function StartFlow() {
       plan: plan.name,
       service: plan.service,
       total: plan.price,
+      brief: {
+        type: bType || undefined,
+        vibe: bVibe || undefined,
+        branding: bBranding || undefined,
+        goal: bGoal || undefined,
+        references: refs.trim() || undefined,
+        notes: brief.trim() || undefined,
+      },
     });
     setCreated(project);
     setStep(3);
@@ -159,10 +173,10 @@ function StartFlow() {
 
         {step === 1 && (
           <Card
-            title="Tell us about the project"
-            subtitle="A quick brief so we can start without a kickoff call."
+            title="Let's shape your brief — together"
+            subtitle="Not sure what to write? Just tap what fits. There are no wrong answers — we'll refine the rest with you."
           >
-            <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Your name">
                 <input
                   value={name}
@@ -180,15 +194,56 @@ function StartFlow() {
                   className="input"
                 />
               </Field>
-              <Field label="What are we building?" hint="Optional but helpful">
+            </div>
+
+            <div className="mt-6 space-y-6">
+              <ChipGroup
+                label="What do you need?"
+                value={bType}
+                onChange={setBType}
+                options={["Website", "Web app", "Mobile app", "CRM / internal tool", "Ads & branding", "Not sure yet"]}
+              />
+              <ChipGroup
+                label="What vibe are you going for?"
+                value={bVibe}
+                onChange={setBVibe}
+                options={["Minimal & premium", "Warm & editorial", "Bold & colorful", "Clean & corporate", "Playful", "Show me options"]}
+              />
+              <ChipGroup
+                label="Do you have branding?"
+                value={bBranding}
+                onChange={setBBranding}
+                options={["Full brand kit", "Just a logo", "Nothing yet — need it"]}
+              />
+              <ChipGroup
+                label="What's the main goal?"
+                value={bGoal}
+                onChange={setBGoal}
+                options={["Get more clients", "Sell products", "Look more credible", "Launch something fast", "Replace an old site"]}
+              />
+
+              <Field label="Any sites or brands you love?" hint="Optional — paste links or names">
+                <input
+                  value={refs}
+                  onChange={(e) => setRefs(e.target.value)}
+                  placeholder="e.g. aery.com, that clean skincare brand you saw…"
+                  className="input"
+                />
+              </Field>
+              <Field label="Anything else on your mind?" hint="Optional">
                 <textarea
                   value={brief}
                   onChange={(e) => setBrief(e.target.value)}
-                  placeholder="A website for my botanical skincare brand — clean, warm, with a shop…"
-                  rows={4}
+                  placeholder="A must-have feature, a deadline, colors you love or hate — whatever's in your head."
+                  rows={3}
                   className="input resize-none"
                 />
               </Field>
+
+              <p className="rounded-2xl bg-periwinkle-50 px-4 py-3 text-sm text-ink/60">
+                💡 This is just a starting point. Once you're in, we turn it into a
+                clear scope and you approve everything from your dashboard.
+              </p>
             </div>
             <FooterBar>
               <button className="text-sm text-ink/50 hover:text-ink" onClick={() => setStep(0)}>
@@ -445,6 +500,43 @@ function Row({
     <div className="flex items-center justify-between">
       <span className={muted ? "text-ink/40" : "text-ink/60"}>{label}</span>
       <span className={strong ? "font-semibold" : muted ? "text-ink/50" : ""}>{value}</span>
+    </div>
+  );
+}
+
+function ChipGroup({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  return (
+    <div>
+      <p className="mb-2.5 text-sm font-medium text-ink/70">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => {
+          const active = value === opt;
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onChange(active ? "" : opt)}
+              className={`rounded-full border px-4 py-2 text-sm transition-all duration-200 ${
+                active
+                  ? "border-ink bg-ink text-white"
+                  : "border-ink/12 bg-white/60 text-ink/70 hover:border-ink/30 hover:text-ink"
+              }`}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

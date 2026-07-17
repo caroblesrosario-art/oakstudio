@@ -4,9 +4,10 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Logo from "../components/Logo";
-import { getProject, type Project } from "../lib/projects";
+import { getProject, addComment, type Project } from "../lib/projects";
 import { fmt } from "../lib/plans";
 import { paypalMeLink } from "../lib/payment";
+import { deliverFeedback } from "../lib/feedback";
 
 export default function DashboardPage() {
   return (
@@ -132,7 +133,7 @@ function Dashboard() {
 
   return (
     <Frame>
-      <ProjectView project={project} onExit={() => { setProject(null); setCode(""); }} />
+      <ProjectView key={project.code} project={project} onExit={() => { setProject(null); setCode(""); }} />
     </Frame>
   );
 }
@@ -142,6 +143,24 @@ function ProjectView({ project, onExit }: { project: Project; onExit: () => void
     .filter((p) => p.status === "paid")
     .reduce((s, p) => s + p.amount, 0);
   const outstanding = project.total - paidToDate;
+
+  const [comments, setComments] = useState(project.comments ?? []);
+  const [commentText, setCommentText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentNote, setSentNote] = useState("");
+
+  const sendFeedback = async () => {
+    const text = commentText.trim();
+    if (!text || sending) return;
+    setSending(true);
+    const updated = addComment(project.code, text);
+    if (updated) setComments(updated.comments);
+    setCommentText("");
+    await deliverFeedback(project.code, project.client, text);
+    setSending(false);
+    setSentNote("Sent to OakStudio ✓");
+    window.setTimeout(() => setSentNote(""), 2600);
+  };
 
   return (
     <div className="mx-auto mt-8 max-w-5xl pb-20">
@@ -185,8 +204,13 @@ function ProjectView({ project, onExit }: { project: Project; onExit: () => void
         </Stat>
       </div>
 
+      {/* Live preview */}
+      <div className="mt-6">
+        <PreviewPanel url={project.previewUrl} progress={project.progress} />
+      </div>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* stages + updates */}
+        {/* stages + conversation */}
         <div className="space-y-6 lg:col-span-2">
           <Panel title="Project stages">
             <ol className="relative ml-2">
@@ -238,7 +262,8 @@ function ProjectView({ project, onExit }: { project: Project; onExit: () => void
             </ol>
           </Panel>
 
-          <Panel title="Recent updates">
+          <Panel title="Updates & feedback">
+            {/* Studio updates */}
             <div className="space-y-5">
               {project.updates.map((u, i) => (
                 <div key={i} className="relative flex gap-4">
@@ -252,6 +277,55 @@ function ProjectView({ project, onExit }: { project: Project; onExit: () => void
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Two-way conversation */}
+            {comments.length > 0 && (
+              <div className="mt-6 space-y-3 border-t border-ink/8 pt-6">
+                {comments.map((c, i) => (
+                  <div
+                    key={i}
+                    className={`flex ${c.author === "client" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                        c.author === "client"
+                          ? "bg-ink text-white"
+                          : "bg-paper text-ink"
+                      }`}
+                    >
+                      <p className="mb-0.5 text-[10px] uppercase tracking-wider opacity-50">
+                        {c.author === "client" ? "You" : "OakStudio"} · {c.date}
+                      </p>
+                      {c.body}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Composer */}
+            <div className="mt-6 border-t border-ink/8 pt-5">
+              <label className="mb-2 block text-sm font-medium text-ink/70">
+                Leave feedback anytime
+              </label>
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Tell us what you think of the preview — what to change, what you love…"
+                rows={3}
+                className="input resize-none"
+              />
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-xs text-emerald-600">{sentNote}</span>
+                <button
+                  onClick={sendFeedback}
+                  disabled={sending || !commentText.trim()}
+                  className="btn-primary !py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {sending ? "Sending…" : "Send feedback"}
+                </button>
+              </div>
             </div>
           </Panel>
         </div>
@@ -322,6 +396,75 @@ function ProjectView({ project, onExit }: { project: Project; onExit: () => void
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PreviewPanel({ url, progress }: { url?: string; progress: number }) {
+  const [nonce, setNonce] = useState(0);
+  return (
+    <div className="rounded-3xl border border-ink/8 bg-white/70 p-6 backdrop-blur-sm sm:p-7">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-medium uppercase tracking-wider text-ink/45">Live preview</h2>
+          <p className="mt-0.5 text-xs text-ink/40">
+            A real, always-current view of your site as we build it.
+          </p>
+        </div>
+        {url && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setNonce((n) => n + 1)}
+              className="rounded-full border border-ink/12 px-3 py-1.5 text-xs text-ink/60 hover:border-ink/25 hover:text-ink"
+            >
+              ↻ Refresh
+            </button>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-ink/12 px-3 py-1.5 text-xs text-ink/60 hover:border-ink/25 hover:text-ink"
+            >
+              Open ↗
+            </a>
+          </div>
+        )}
+      </div>
+
+      {url ? (
+        <div className="overflow-hidden rounded-2xl border border-ink/10 bg-cream shadow-[0_20px_50px_-30px_rgba(20,18,16,0.35)]">
+          <div className="flex items-center gap-2 border-b border-ink/6 px-4 py-2.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
+            <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
+            <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
+            <div className="ml-3 truncate rounded-full bg-paper px-3 py-1 text-[11px] text-ink/40">
+              {url.replace(/^https?:\/\//, "")}
+            </div>
+          </div>
+          <iframe
+            key={nonce}
+            src={url}
+            title="Project live preview"
+            loading="lazy"
+            className="h-[300px] w-full bg-white sm:h-[440px]"
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-ink/15 bg-paper/60 px-6 py-16 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="5" width="18" height="14" rx="2" stroke="#6E85E0" strokeWidth="1.6" />
+              <path d="M3 9h18" stroke="#6E85E0" strokeWidth="1.6" />
+            </svg>
+          </div>
+          <p className="mt-4 font-medium text-ink">Your live preview is on its way</p>
+          <p className="mt-1 max-w-sm text-sm text-ink/50">
+            As soon as we start on your design, a working preview of your site
+            appears right here — refresh anytime to watch it come together
+            ({progress}% so far).
+          </p>
+        </div>
+      )}
     </div>
   );
 }

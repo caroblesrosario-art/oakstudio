@@ -5,6 +5,7 @@ import Work from "./components/Work";
 import Process from "./components/Process";
 import Pricing from "./components/Pricing";
 import About from "./components/About";
+import FAQ from "./components/FAQ";
 import Contact from "./components/Contact";
 import Footer from "./components/Footer";
 
@@ -18,6 +19,8 @@ export default function Home() {
       <Process />
       <Pricing />
       <About />
+      {/* Last objection-killer before the closing CTA. */}
+      <FAQ />
       <Contact />
       <Footer />
     </main>

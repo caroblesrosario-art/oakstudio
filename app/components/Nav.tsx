@@ -10,6 +10,7 @@ const links = [
   { href: "/#process", label: "How it works" },
   { href: "/#pricing", label: "Plans" },
   { href: "/#about", label: "Studio" },
+  { href: "/#faq", label: "FAQ" },
 ];
 
 export default function Nav() {

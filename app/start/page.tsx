@@ -7,6 +7,8 @@ import Logo from "../components/Logo";
 import { plans, planById, fmt } from "../lib/plans";
 import { createProject, type Project } from "../lib/projects";
 import { paypalMeLink } from "../lib/payment";
+import { deliverOrder } from "../lib/feedback";
+import { uploadMoodboardImage } from "../lib/supabase";
 import PayPalButtons from "../components/PayPalButtons";
 
 export default function StartPage() {
@@ -58,6 +60,9 @@ function StartFlow() {
   const [bBranding, setBBranding] = useState("");
   const [bGoal, setBGoal] = useState("");
   const [refs, setRefs] = useState("");
+  const [moodboard, setMoodboard] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [sessionId] = useState(() => "mb-" + Math.random().toString(36).slice(2, 10));
   const [processing, setProcessing] = useState(false);
   const [initiated, setInitiated] = useState(false);
   const [created, setCreated] = useState<Project | null>(null);
@@ -72,27 +77,59 @@ function StartFlow() {
 
   const canContinueDetails = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
 
-  const mintProject = () => {
-    const project = createProject({
+  const [minting, setMinting] = useState(false);
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    for (const file of Array.from(files).slice(0, 8)) {
+      if (!file.type.startsWith("image/")) continue;
+      const url = await uploadMoodboardImage(file, sessionId);
+      if (url) setMoodboard((m) => [...m, url]);
+    }
+    setUploading(false);
+  };
+
+  const mintProject = async () => {
+    if (minting) return;
+    setMinting(true);
+    const briefData = {
+      type: bType || undefined,
+      vibe: bVibe || undefined,
+      branding: bBranding || undefined,
+      goal: bGoal || undefined,
+      references: refs.trim() || undefined,
+      notes: brief.trim() || undefined,
+      moodboard: moodboard.length ? moodboard : undefined,
+    };
+    const project = await createProject({
       client: name.trim(),
+      email: email.trim() || undefined,
       plan: plan.name,
       service: plan.service,
       total: plan.price,
-      brief: {
-        type: bType || undefined,
-        vibe: bVibe || undefined,
-        branding: bBranding || undefined,
-        goal: bGoal || undefined,
-        references: refs.trim() || undefined,
-        notes: brief.trim() || undefined,
-      },
+      brief: briefData,
+    });
+    // Notify the studio of the new order (email via Formspree, or mailto fallback).
+    void deliverOrder({
+      code: project.code,
+      client: name.trim(),
+      email: email.trim(),
+      plan: plan.name,
+      service: plan.service,
+      deposit,
+      total: plan.price,
+      brief: briefData,
     });
     setCreated(project);
+    setMinting(false);
     setStep(3);
   };
 
   // Real PayPal checkout captured the payment — mint the code right away.
-  const onPaidWithPayPal = () => mintProject();
+  const onPaidWithPayPal = () => {
+    void mintProject();
+  };
 
   // ── PayPal.me fallback (used only if the PayPal SDK can't load) ──
   // 1) Open PayPal.me with the deposit amount pre-filled (new tab).
@@ -103,10 +140,7 @@ function StartFlow() {
   // 2) Client confirms they paid, then we mint the code.
   const confirmPaid = () => {
     setProcessing(true);
-    window.setTimeout(() => {
-      mintProject();
-      setProcessing(false);
-    }, 700);
+    void mintProject().finally(() => setProcessing(false));
   };
 
   return (
@@ -240,6 +274,56 @@ function StartFlow() {
                 />
               </Field>
 
+              {/* Moodboard */}
+              <div>
+                <span className="mb-2 flex items-center justify-between text-sm font-medium text-ink/70">
+                  Your moodboard
+                  <span className="text-xs font-normal text-ink/35">Optional — drag in images that inspire you</span>
+                </span>
+                <label
+                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-ink/20 bg-white/50 px-6 py-8 text-center transition-colors hover:border-ink/40 hover:bg-white"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    void uploadFiles(e.dataTransfer.files);
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => void uploadFiles(e.target.files)}
+                  />
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className="text-periwinkle-500">
+                    <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-sm text-ink/60">
+                    {uploading ? "Uploading…" : "Drop images here or click to upload"}
+                  </span>
+                  <span className="text-xs text-ink/35">Screenshots, photos, color palettes — up to 8</span>
+                </label>
+
+                {moodboard.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {moodboard.map((url, i) => (
+                      <div key={i} className="group relative h-20 w-20 overflow-hidden rounded-xl border border-ink/10">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`Moodboard ${i + 1}`} className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setMoodboard((m) => m.filter((_, j) => j !== i))}
+                          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-ink/70 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          aria-label="Remove image"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <p className="rounded-2xl bg-periwinkle-50 px-4 py-3 text-sm text-ink/60">
                 💡 This is just a starting point. Once you're in, we turn it into a
                 clear scope and you approve everything from your dashboard.
@@ -260,7 +344,16 @@ function StartFlow() {
           </Card>
         )}
 
-        {step === 2 && (
+        {step === 2 && minting && (
+          <Card title="Confirming your payment…" subtitle="Hang tight — we're creating your project and code.">
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-ink/50">
+              <Spinner />
+              <p className="text-sm">Setting things up…</p>
+            </div>
+          </Card>
+        )}
+
+        {step === 2 && !minting && (
           <Card title="Pay your 50% deposit" subtitle="This starts your project and creates your code.">
             <div className="grid gap-6 sm:grid-cols-5">
               {/* summary */}

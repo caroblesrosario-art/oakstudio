@@ -47,29 +47,35 @@ function Dashboard() {
   const [project, setProject] = useState<Project | null>(null);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const open = async (raw: string) => {
+    setError("");
+    setLoading(true);
+    const p = await getProject(raw);
+    setLoading(false);
+    if (!p) {
+      setError("No project found for that code. Double-check and try again.");
+      return false;
+    }
+    setProject(p);
+    setCode(raw.toUpperCase());
+    return true;
+  };
 
   // Auto-open if a code is passed in the URL (from /start).
   useEffect(() => {
     const c = params.get("code");
-    if (c) {
-      const p = getProject(c);
-      if (p) {
-        setProject(p);
-        setCode(c.toUpperCase());
-      }
-    }
-    setReady(true);
+    (async () => {
+      if (c) await open(c);
+      setReady(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    const p = getProject(code);
-    if (!p) {
-      setError("No project found for that code. Double-check and try again.");
-      return;
-    }
-    setProject(p);
+    void open(code);
   };
 
   if (!ready) return <Frame><div className="py-24 text-center text-ink/40">Loading…</div></Frame>;
@@ -99,8 +105,8 @@ function Dashboard() {
                 autoFocus
               />
               {error && <p className="mt-2 text-sm text-rose-500">{error}</p>}
-              <button type="submit" className="btn-primary mt-4 w-full">
-                View my project
+              <button type="submit" disabled={loading} className="btn-primary mt-4 w-full disabled:opacity-60">
+                {loading ? "Looking…" : "View my project"}
               </button>
             </form>
 
@@ -109,11 +115,7 @@ function Dashboard() {
                 Just exploring? Try the demo project
               </p>
               <button
-                onClick={() => {
-                  setCode("OAK-2049");
-                  const p = getProject("OAK-2049");
-                  if (p) setProject(p);
-                }}
+                onClick={() => void open("OAK-2049")}
                 className="mt-1 text-sm font-medium text-ink underline underline-offset-4"
               >
                 OAK-2049
@@ -153,7 +155,7 @@ function ProjectView({ project, onExit }: { project: Project; onExit: () => void
     const text = commentText.trim();
     if (!text || sending) return;
     setSending(true);
-    const updated = addComment(project.code, text);
+    const updated = await addComment(project.code, text);
     if (updated) setComments(updated.comments);
     setCommentText("");
     await deliverFeedback(project.code, project.client, text);

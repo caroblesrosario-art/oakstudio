@@ -4,6 +4,7 @@ import Services from "./components/Services";
 import Work from "./components/Work";
 import Process from "./components/Process";
 import Pricing from "./components/Pricing";
+import Guarantee from "./components/Guarantee";
 import Testimonials from "./components/Testimonials";
 import About from "./components/About";
 import FAQ from "./components/FAQ";
@@ -21,6 +22,8 @@ export default function Home() {
       <Testimonials />
       <Process />
       <Pricing />
+      {/* Risk reversal, right after the price. */}
+      <Guarantee />
       <About />
       {/* Last objection-killer before the closing CTA. */}
       <FAQ />

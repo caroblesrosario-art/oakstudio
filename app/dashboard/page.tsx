@@ -7,7 +7,7 @@ import Logo from "../components/Logo";
 import { getProject, addComment, type Project } from "../lib/projects";
 import { fmt } from "../lib/plans";
 import { paypalMeLink } from "../lib/payment";
-import { deliverFeedback } from "../lib/feedback";
+import { deliverFeedback, requestCodeRecovery } from "../lib/feedback";
 
 export default function DashboardPage() {
   return (
@@ -48,6 +48,7 @@ function Dashboard() {
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [recovering, setRecovering] = useState(false);
 
   const open = async (raw: string) => {
     setError("");
@@ -110,15 +111,18 @@ function Dashboard() {
               </button>
             </form>
 
-            <div className="mt-6 rounded-2xl bg-paper p-4 text-center">
-              <p className="text-xs text-ink/50">
-                Just exploring? Try the demo project
-              </p>
+            <div className="mt-5 flex items-center justify-between gap-3">
               <button
                 onClick={() => void open("OAK-2049")}
-                className="mt-1 text-sm font-medium text-ink underline underline-offset-4"
+                className="text-xs text-ink/45 hover:text-ink"
               >
-                OAK-2049
+                Try the demo →
+              </button>
+              <button
+                onClick={() => setRecovering(true)}
+                className="text-xs font-medium text-ink/60 hover:text-ink"
+              >
+                Lost your code?
               </button>
             </div>
           </div>
@@ -128,6 +132,8 @@ function Dashboard() {
               Start one
             </Link>
           </p>
+
+          {recovering && <RecoverCode onClose={() => setRecovering(false)} />}
         </div>
       </Frame>
     );
@@ -137,6 +143,100 @@ function Dashboard() {
     <Frame>
       <ProjectView key={project.code} project={project} onExit={() => { setProject(null); setCode(""); }} />
     </Frame>
+  );
+}
+
+function RecoverCode({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [autoSent, setAutoSent] = useState(false);
+
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!valid) return;
+    setSending(true);
+    // true → the studio was notified directly; false → we opened a pre-filled
+    // email in the client's mail app for them to send.
+    const notified = await requestCodeRecovery(email);
+    setAutoSent(notified);
+    setSending(false);
+    setDone(true);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl border border-ink/8 bg-cream p-7 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {done ? (
+          <div className="text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12.5l4 4 10-10.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h2 className="mt-4 text-xl font-semibold tracking-tight">
+              {autoSent ? "Request sent" : "Almost there"}
+            </h2>
+            <p className="mt-2 text-sm text-ink/55">
+              {autoSent ? (
+                <>
+                  If there&apos;s a project under{" "}
+                  <span className="font-medium text-ink">{email.trim()}</span>,
+                  we&apos;ll email your code to that address shortly. Check your
+                  inbox (and spam).
+                </>
+              ) : (
+                <>
+                  We opened a pre-filled email to us in your mail app — just hit{" "}
+                  <span className="font-medium text-ink">send</span> and we&apos;ll
+                  reply with your code. Or write us at{" "}
+                  <span className="font-medium text-ink">oakstudio.do@gmail.com</span>.
+                </>
+              )}
+            </p>
+            <button onClick={onClose} className="btn-primary mt-6 w-full">
+              Got it
+            </button>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-xl font-semibold tracking-tight">Lost your code?</h2>
+            <p className="mt-1 text-sm text-ink/55">
+              Enter the email you used to start your project and we&apos;ll send your
+              tracking code back to it.
+            </p>
+            <form onSubmit={send} className="mt-5">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                className="input"
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={!valid || sending}
+                className="btn-primary mt-3 w-full disabled:opacity-40"
+              >
+                {sending ? "Sending…" : "Send me my code"}
+              </button>
+            </form>
+            <button onClick={onClose} className="mt-3 w-full text-center text-xs text-ink/45 hover:text-ink">
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

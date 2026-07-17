@@ -4,6 +4,7 @@ import Services from "./components/Services";
 import Work from "./components/Work";
 import Process from "./components/Process";
 import Pricing from "./components/Pricing";
+import Testimonials from "./components/Testimonials";
 import About from "./components/About";
 import FAQ from "./components/FAQ";
 import Contact from "./components/Contact";
@@ -16,6 +17,8 @@ export default function Home() {
       <Hero />
       <Services />
       <Work />
+      {/* Proof right after the portfolio — renders only when real quotes exist. */}
+      <Testimonials />
       <Process />
       <Pricing />
       <About />

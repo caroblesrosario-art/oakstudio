@@ -81,6 +81,31 @@ export async function deliverOrder(order: OrderInfo): Promise<boolean> {
   return sent;
 }
 
+/**
+ * A client who lost their code asks the studio to resend it.
+ *
+ * Deliberately does NOT look the code up on the page: the code unlocks a
+ * private dashboard, and anyone could type someone else's email. Instead the
+ * request reaches the studio, who confirms the email is on file and sends the
+ * code back to that address — so the code only ever goes to its owner's inbox.
+ */
+export async function requestCodeRecovery(email: string): Promise<boolean> {
+  const clean = email.trim();
+  const sent = await post({
+    _subject: `🔑 Code recovery request — ${clean}`,
+    type: "CODE RECOVERY",
+    email: clean,
+    note: "Client lost their tracking code. Look them up in /admin and reply with it.",
+  });
+  if (!sent) {
+    mailto(
+      "I lost my project code",
+      `Hi OakStudio,\n\nI can't find my project tracking code. Could you resend it?\n\nThe email I used to start the project: ${clean}\n\nThanks!`
+    );
+  }
+  return sent;
+}
+
 /** Deliver a client comment to the studio. */
 export async function deliverFeedback(
   code: string,

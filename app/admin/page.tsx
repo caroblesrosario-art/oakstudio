@@ -5,50 +5,75 @@ import Link from "next/link";
 import Logo from "../components/Logo";
 import { listProjects, patchProject, type Project } from "../lib/projects";
 import { fmt } from "../lib/plans";
-import { ADMIN_PASSCODE } from "../lib/admin";
+import { signIn, type Session } from "../lib/supabase";
 
-const AUTH_KEY = "oakstudio.admin.ok";
+const SESSION_KEY = "oakstudio.admin.session";
 
 export default function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const [pass, setPass] = useState("");
+  const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem(AUTH_KEY) === "1") {
-      setAuthed(true);
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (raw) setSession(JSON.parse(raw));
+    } catch {
+      /* ignore */
     }
+    setReady(true);
   }, []);
 
-  const login = (e: React.FormEvent) => {
+  const login = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pass === ADMIN_PASSCODE) {
-      sessionStorage.setItem(AUTH_KEY, "1");
-      setAuthed(true);
-    } else {
-      setErr("Wrong passcode.");
+    setErr("");
+    setBusy(true);
+    const s = await signIn(email.trim(), password);
+    setBusy(false);
+    if (!s) {
+      setErr("Wrong email or password.");
+      return;
     }
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    setSession(s);
   };
 
-  if (!authed) {
+  const logout = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setSession(null);
+  };
+
+  if (!ready) return <Shell><div className="py-24 text-center text-ink/40">Loading…</div></Shell>;
+
+  if (!session) {
     return (
       <Shell>
         <div className="mx-auto mt-20 max-w-sm">
           <div className="rounded-3xl border border-ink/8 bg-white/70 p-8 backdrop-blur-sm">
             <h1 className="text-2xl font-semibold tracking-tight">Studio admin</h1>
-            <p className="mt-1 text-sm text-ink/50">Enter your passcode to see all orders.</p>
-            <form onSubmit={login} className="mt-6">
+            <p className="mt-1 text-sm text-ink/50">Sign in to see all orders.</p>
+            <form onSubmit={login} className="mt-6 space-y-3">
               <input
-                type="password"
-                value={pass}
-                onChange={(e) => setPass(e.target.value)}
-                placeholder="Passcode"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
                 className="input"
                 autoFocus
               />
-              {err && <p className="mt-2 text-sm text-rose-500">{err}</p>}
-              <button type="submit" className="btn-primary mt-4 w-full">
-                Enter
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="input"
+              />
+              {err && <p className="text-sm text-rose-500">{err}</p>}
+              <button type="submit" disabled={busy} className="btn-primary w-full disabled:opacity-60">
+                {busy ? "Signing in…" : "Sign in"}
               </button>
             </form>
           </div>
@@ -57,7 +82,7 @@ export default function AdminPage() {
     );
   }
 
-  return <AdminBoard />;
+  return <AdminBoard session={session} onLogout={logout} />;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -76,14 +101,15 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AdminBoard() {
+function AdminBoard({ session, onLogout }: { session: Session; onLogout: () => void }) {
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [selected, setSelected] = useState<Project | null>(null);
 
-  const load = async () => setProjects(await listProjects());
+  const load = async () => setProjects(await listProjects(session.access_token));
 
   useEffect(() => {
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const paidOf = (p: Project) =>
@@ -95,12 +121,14 @@ function AdminBoard() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Orders</h1>
           <p className="text-sm text-ink/50">
-            {projects ? `${projects.length} project${projects.length === 1 ? "" : "s"}` : "Loading…"}
+            {projects ? `${projects.length} project${projects.length === 1 ? "" : "s"}` : "Loading…"} ·{" "}
+            <span className="text-ink/40">{session.email}</span>
           </p>
         </div>
-        <button onClick={() => void load()} className="btn-ghost !py-2 text-sm">
-          ↻ Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => void load()} className="btn-ghost !py-2 text-sm">↻ Refresh</button>
+          <button onClick={onLogout} className="btn-ghost !py-2 text-sm">Sign out</button>
+        </div>
       </div>
 
       {projects && projects.length === 0 && (
@@ -141,17 +169,21 @@ function AdminBoard() {
         ))}
       </div>
 
-      {selected && <Detail project={selected} onClose={() => setSelected(null)} onSaved={load} />}
+      {selected && (
+        <Detail project={selected} token={session.access_token} onClose={() => setSelected(null)} onSaved={load} />
+      )}
     </Shell>
   );
 }
 
 function Detail({
   project,
+  token,
   onClose,
   onSaved,
 }: {
   project: Project;
+  token: string;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -165,7 +197,7 @@ function Detail({
 
   const saveProgress = async () => {
     setSaving(true);
-    await patchProject(project.code, { progress });
+    await patchProject(token, project.code, { progress });
     setSaving(false);
     await onSaved();
   };
@@ -174,7 +206,7 @@ function Detail({
     if (!title.trim()) return;
     setSaving(true);
     const updates = [{ date: today(), title: title.trim(), body: body.trim() }, ...project.updates];
-    await patchProject(project.code, { updates });
+    await patchProject(token, project.code, { updates });
     setTitle("");
     setBody("");
     setSaving(false);
@@ -198,7 +230,6 @@ function Detail({
           <button onClick={onClose} className="rounded-full border border-ink/12 px-3 py-1.5 text-sm text-ink/60">Close</button>
         </div>
 
-        {/* Brief */}
         <div className="mt-6 rounded-2xl bg-white/70 p-5">
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-ink/45">What they asked for</p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -225,7 +256,6 @@ function Detail({
           )}
         </div>
 
-        {/* Payments */}
         <div className="mt-4 rounded-2xl bg-white/70 p-5">
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-ink/45">Payments</p>
           {project.payments.map((p, i) => (
@@ -238,7 +268,6 @@ function Detail({
           ))}
         </div>
 
-        {/* Update progress */}
         <div className="mt-4 rounded-2xl bg-white/70 p-5">
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-ink/45">Update project</p>
           <label className="text-sm text-ink/60">Progress: {progress}%</label>
@@ -264,7 +293,6 @@ function Detail({
           </div>
         </div>
 
-        {/* Feedback thread */}
         {project.comments.length > 0 && (
           <div className="mt-4 rounded-2xl bg-white/70 p-5">
             <p className="mb-3 text-xs font-medium uppercase tracking-wider text-ink/45">Client feedback</p>

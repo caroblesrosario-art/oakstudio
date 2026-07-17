@@ -66,6 +66,68 @@ export async function sbUpdate<T>(
   return rows[0] ?? null;
 }
 
+/** Call a Postgres function (RPC). Used for client-safe operations. */
+export async function sbRpc<T>(fn: string, args: Record<string, unknown>): Promise<T | null> {
+  const res = await fetch(`${REST}/rpc/${fn}`, {
+    method: "POST",
+    headers: headers({ "Content-Type": "application/json" }),
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) return null;
+  const text = await res.text();
+  if (!text) return null;
+  return JSON.parse(text) as T;
+}
+
+/* ---------- Admin auth (Supabase Auth, email + password) ---------- */
+
+export interface Session {
+  access_token: string;
+  email: string;
+}
+
+/** Sign in an admin with email + password. Returns a session or null. */
+export async function signIn(email: string, password: string): Promise<Session | null> {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { access_token?: string; user?: { email?: string } };
+  if (!data.access_token) return null;
+  return { access_token: data.access_token, email: data.user?.email ?? email };
+}
+
+function authHeaders(token: string, extra: Record<string, string> = {}): Record<string, string> {
+  return { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}`, ...extra };
+}
+
+/** List all rows as the authenticated admin. */
+export async function sbListAuthed<T>(token: string, table: string, order = "created_at.desc"): Promise<T[]> {
+  const res = await fetch(`${REST}/${table}?select=*&order=${order}`, { headers: authHeaders(token) });
+  if (!res.ok) return [];
+  return (await res.json()) as T[];
+}
+
+/** Update a row as the authenticated admin. */
+export async function sbUpdateAuthed<T>(
+  token: string,
+  table: string,
+  col: string,
+  val: string,
+  patch: Record<string, unknown>
+): Promise<T | null> {
+  const res = await fetch(`${REST}/${table}?${col}=eq.${encodeURIComponent(val)}`, {
+    method: "PATCH",
+    headers: authHeaders(token, { "Content-Type": "application/json", Prefer: "return=representation" }),
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) return null;
+  const rows = (await res.json()) as T[];
+  return rows[0] ?? null;
+}
+
 /** Upload a moodboard image to Storage and return its public URL. */
 export async function uploadMoodboardImage(file: File, code: string): Promise<string | null> {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");

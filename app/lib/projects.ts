@@ -4,7 +4,7 @@
 // the studio sees them all in /admin. OAK-2049 is a hardcoded demo that
 // never hits the database (keeps the real orders list clean).
 // ─────────────────────────────────────────────────────────────
-import { sbGetOne, sbInsert, sbUpdate, sbList } from "./supabase";
+import { sbRpc, sbListAuthed, sbUpdateAuthed } from "./supabase";
 
 export type StageKey = "brief" | "design" | "build" | "review" | "launch";
 export type StageState = "done" | "active" | "upcoming";
@@ -157,12 +157,14 @@ function rowToProject(r: Row): Project {
 export async function getProject(code: string): Promise<Project | null> {
   const key = code.trim().toUpperCase();
   if (key === DEMO_CODE) return demo;
-  const row = await sbGetOne<Row>("projects", "code", key);
-  return row ? rowToProject(row) : null;
+  const row = await sbRpc<Row>("get_project", { p_code: key });
+  // A no-match returns a composite of all-nulls, not null — check the PK.
+  return row && row.code ? rowToProject(row) : null;
 }
 
-export async function listProjects(): Promise<Project[]> {
-  const rows = await sbList<Row>("projects");
+// Admin-only: list every project (requires an authenticated session token).
+export async function listProjects(token: string): Promise<Project[]> {
+  const rows = await sbListAuthed<Row>(token, "projects");
   return rows.map(rowToProject);
 }
 
@@ -177,18 +179,16 @@ export interface NewProjectInput {
 }
 
 export async function createProject(input: NewProjectInput): Promise<Project> {
-  const code = await uniqueCode();
   const deposit = Math.round(input.total / 2);
-  const project: Project = {
-    code,
+  const payload = {
     client: input.client,
-    email: input.email,
+    email: input.email ?? null,
     plan: input.plan,
     service: input.service,
     total: input.total,
     currency: "USD",
     progress: input.custom ? 0 : 8,
-    startedAt: today(),
+    started_at: today(),
     eta: input.custom ? "Quote in ~2 days" : "~4 weeks",
     stages: (() => {
       const s = baseStages(0);
@@ -207,35 +207,17 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
         : { date: today(), title: "Project created 🎉", body: "Your deposit is confirmed and your brief is queued. We'll post your first update here — check back anytime with your code." },
     ],
     files: input.custom ? [] : [{ name: "Brief template.pdf", kind: "doc", date: today() }],
-    brief: input.brief,
-    previewUrl: undefined,
-    comments: [],
+    brief: input.brief ?? {},
+    preview_url: null,
   };
 
-  await sbInsert("projects", {
-    code: project.code,
-    client: project.client,
-    email: project.email ?? null,
-    plan: project.plan,
-    service: project.service,
-    total: project.total,
-    currency: project.currency,
-    progress: project.progress,
-    started_at: project.startedAt,
-    eta: project.eta,
-    stages: project.stages,
-    payments: project.payments,
-    updates: project.updates,
-    files: project.files,
-    brief: project.brief ?? {},
-    preview_url: project.previewUrl ?? null,
-    comments: project.comments,
-  });
-
-  return project;
+  // The database generates a unique OAK-#### code and returns the full row.
+  const row = await sbRpc<Row>("create_order", { p: payload });
+  if (!row) throw new Error("Could not create project");
+  return rowToProject(row);
 }
 
-/** Append a client comment to a project and persist it. */
+/** Append a client comment to a project and persist it (via RPC). */
 export async function addComment(code: string, body: string): Promise<Project | null> {
   const key = code.trim().toUpperCase();
   const trimmed = body.trim();
@@ -243,40 +225,21 @@ export async function addComment(code: string, body: string): Promise<Project | 
     demo.comments = [...demo.comments, { author: "client", date: today(), body: trimmed }];
     return demo;
   }
-  const current = await sbGetOne<Row>("projects", "code", key);
-  if (!current) return null;
-  const comments = [
-    ...((current.comments as Comment[]) ?? []),
-    { author: "client" as const, date: today(), body: trimmed },
-  ];
-  const updated = await sbUpdate<Row>("projects", "code", key, { comments });
-  return updated ? rowToProject(updated) : null;
+  const row = await sbRpc<Row>("add_comment", { p_code: key, p_body: trimmed });
+  return row && row.code ? rowToProject(row) : null;
 }
 
-/** Studio-side: patch a project (progress, updates, stages…). */
-export async function patchProject(code: string, patch: Record<string, unknown>): Promise<Project | null> {
-  const updated = await sbUpdate<Row>("projects", "code", code.trim().toUpperCase(), patch);
+/** Studio-side: patch a project (progress, updates…). Requires admin session. */
+export async function patchProject(
+  token: string,
+  code: string,
+  patch: Record<string, unknown>
+): Promise<Project | null> {
+  const updated = await sbUpdateAuthed<Row>(token, "projects", "code", code.trim().toUpperCase(), patch);
   return updated ? rowToProject(updated) : null;
 }
 
 /* ---------- helpers ---------- */
-
-async function uniqueCode(): Promise<string> {
-  for (let i = 0; i < 6; i++) {
-    const code = `OAK-${1000 + Math.floor(hashNow() % 9000)}`;
-    if (code === DEMO_CODE) continue;
-    const exists = await sbGetOne("projects", "code", code);
-    if (!exists) return code;
-  }
-  return `OAK-${Date.now().toString().slice(-4)}`;
-}
-
-function hashNow(): number {
-  const s = `${performance.now()}${Math.floor(performance.now() * 1000)}`;
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
 
 function today(): string {
   const d = new Date();

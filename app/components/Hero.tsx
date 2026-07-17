@@ -82,7 +82,7 @@ export default function Hero() {
               <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
               <div className="ml-3 flex items-center gap-2 rounded-full bg-paper px-3 py-1 text-[11px] text-ink/40">
                 <Image src={asset("/oak-mark.svg")} alt="" width={12} height={12} />
-                oakstudio.do/dashboard · OAK-2049
+                oakstudio.cloud/dashboard · OAK-2049
               </div>
             </div>
             <DashboardPreview />

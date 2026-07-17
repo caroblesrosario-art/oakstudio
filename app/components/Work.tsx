@@ -1,25 +1,21 @@
 import Reveal from "./Reveal";
 import Asterisk from "./Asterisk";
 
-// Real, shipped projects (shown as a live embedded preview).
-const featured = {
-  title: "Dronematic",
-  type: "LiDAR mapping & drone inspection",
-  region: "Dominican Republic",
-  url: "https://dronematicrd.com",
-};
-
-// Placeholder slots for upcoming case studies.
-const pieces = [
-  { title: "Terra Botanica", type: "Website · E-commerce", tone: "peri", span: "sm:col-span-5", h: "h-[300px]" },
-  { title: "Loop CRM", type: "Custom CRM", tone: "ink", span: "sm:col-span-7", h: "h-[300px]" },
+// Real, shipped projects — shown as live embedded previews.
+const projects = [
+  {
+    title: "Dronematic",
+    type: "LiDAR mapping & drone inspection",
+    region: "Dominican Republic",
+    url: "https://dronematicrd.com",
+  },
+  {
+    title: "Destiny Chanel",
+    type: "Luxury real estate — personal brand",
+    region: "Metro Atlanta, USA",
+    url: "https://destinychanel.com",
+  },
 ];
-
-const toneStyle: Record<string, string> = {
-  peri: "linear-gradient(145deg,#E7EDFF 0%,#B8C9FF 55%,#93A9F5 100%)",
-  ink: "linear-gradient(150deg,#2A2622 0%,#141210 100%)",
-  sand: "linear-gradient(150deg,#FBF9F4 0%,#EAE4D8 100%)",
-};
 
 export default function Work() {
   return (
@@ -41,92 +37,95 @@ export default function Work() {
           </div>
           <Reveal delay={120}>
             <p className="max-w-xs text-sm text-ink/50">
-              A live look at what we ship. More case studies land here as we
-              curate them.
+              A live look at what we ship — these are the real, running sites.
+              More case studies land here as we curate them.
             </p>
           </Reveal>
         </div>
 
-        {/* Featured — live embedded preview */}
-        <Reveal delay={60}>
-          <div className="mt-12 overflow-hidden rounded-[28px] border border-ink/8 bg-cream shadow-[0_40px_100px_-50px_rgba(20,18,16,0.4)]">
-            <div className="flex items-center gap-2 border-b border-ink/6 px-5 py-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
-              <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
-              <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
-              <div className="ml-3 rounded-full bg-paper px-3 py-1 text-[11px] text-ink/40">
-                {featured.url.replace(/^https?:\/\//, "")}
-              </div>
-            </div>
-            <div className="relative">
-              <iframe
-                src={featured.url}
-                title={`${featured.title} — live preview`}
-                loading="lazy"
-                tabIndex={-1}
-                className="pointer-events-none h-[320px] w-full bg-black sm:h-[460px]"
-              />
-              {/* click-catcher so the whole preview opens the site */}
-              <a
-                href={featured.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Visit ${featured.title}`}
-                className="absolute inset-0"
-              />
-            </div>
-            <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h3 className="text-2xl font-semibold tracking-tight">{featured.title}</h3>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600">
-                    Live
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-ink/55">
-                  {featured.type} · {featured.region}
-                </p>
-              </div>
-              <a
-                href={featured.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
-              >
-                Visit site
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 12L12 4M6 4h6v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </a>
-            </div>
-          </div>
-        </Reveal>
-
-        {/* Upcoming case studies */}
-        <div className="mt-4 grid gap-4 sm:grid-cols-12">
-          {pieces.map((p, i) => (
-            <Reveal key={p.title} delay={i * 90} className={p.span}>
-              <article
-                className={`group relative overflow-hidden rounded-[26px] border border-ink/8 ${p.h} w-full`}
-                style={{ background: toneStyle[p.tone] }}
-              >
-                <div className="grain-mini absolute inset-0 opacity-25" />
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-6">
-                  <div className={p.tone === "peri" || p.tone === "sand" ? "text-ink" : "text-white"}>
-                    <p className="text-xl font-semibold tracking-tight">{p.title}</p>
-                    <p className={`text-sm ${p.tone === "peri" || p.tone === "sand" ? "text-ink/50" : "text-white/60"}`}>
-                      {p.type}
-                    </p>
-                  </div>
-                </div>
-                <span className="absolute right-5 top-5 rounded-full bg-black/10 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-white/70 backdrop-blur">
-                  Case study soon
-                </span>
-              </article>
+        <div className="mt-12 grid gap-5 lg:grid-cols-2">
+          {projects.map((p, i) => (
+            <Reveal key={p.url} delay={i * 90}>
+              <LivePreviewCard {...p} />
             </Reveal>
           ))}
         </div>
+
+        <Reveal delay={120}>
+          <p className="mt-8 text-center text-sm text-ink/40">
+            <Asterisk className="mr-1.5 inline h-3 w-3 align-middle text-periwinkle-500" />
+            More work in progress — your project could be next.
+          </p>
+        </Reveal>
       </div>
     </section>
+  );
+}
+
+function LivePreviewCard({
+  title,
+  type,
+  region,
+  url,
+}: {
+  title: string;
+  type: string;
+  region: string;
+  url: string;
+}) {
+  return (
+    <article className="group overflow-hidden rounded-[26px] border border-ink/8 bg-cream shadow-[0_30px_80px_-45px_rgba(20,18,16,0.4)] transition-transform duration-500 hover:-translate-y-1">
+      <div className="flex items-center gap-2 border-b border-ink/6 px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
+        <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
+        <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
+        <div className="ml-2 truncate rounded-full bg-paper px-3 py-1 text-[11px] text-ink/40">
+          {url.replace(/^https?:\/\//, "")}
+        </div>
+      </div>
+
+      <div className="relative">
+        <iframe
+          src={url}
+          title={`${title} — live preview`}
+          loading="lazy"
+          tabIndex={-1}
+          className="pointer-events-none h-[300px] w-full bg-black sm:h-[340px]"
+        />
+        {/* click-catcher so the whole preview opens the site */}
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Visit ${title}`}
+          className="absolute inset-0"
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-4 p-6">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600">
+              Live
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-ink/55">
+            {type} · {region}
+          </p>
+        </div>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-transform duration-500 group-hover:rotate-45"
+          aria-label={`Visit ${title}`}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 12L12 4M6 4h6v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
+      </div>
+    </article>
   );
 }

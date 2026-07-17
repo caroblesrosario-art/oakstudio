@@ -4,7 +4,10 @@
 // Local dev/build stays at the root ("/") so nothing changes on your machine.
 const repo = process.env.REPO_NAME || "oakstudio";
 const onPages = process.env.GITHUB_PAGES === "true";
-const base = onPages ? `/${repo}` : "";
+// With a custom domain (oakstudio.cloud) the site is served at the ROOT,
+// so there's no /<repo> subpath — drop the basePath in that case.
+const customDomain = process.env.CUSTOM_DOMAIN || "";
+const base = onPages && !customDomain ? `/${repo}` : "";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

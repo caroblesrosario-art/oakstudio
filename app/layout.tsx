@@ -16,7 +16,9 @@ const fraunces = Fraunces({
 });
 
 const basePath =
-  process.env.GITHUB_PAGES === "true" ? `/${process.env.REPO_NAME || "oakstudio"}` : "";
+  process.env.GITHUB_PAGES === "true" && !process.env.CUSTOM_DOMAIN
+    ? `/${process.env.REPO_NAME || "oakstudio"}`
+    : "";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://oakstudio.do"),

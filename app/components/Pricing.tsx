@@ -2,6 +2,7 @@ import Link from "next/link";
 import Reveal from "./Reveal";
 import Asterisk from "./Asterisk";
 import { plans, fmt } from "../lib/plans";
+import { FOUNDING, foundingApplies, foundingPrice } from "../lib/offer";
 
 export default function Pricing() {
   return (
@@ -50,12 +51,23 @@ export default function Pricing() {
                 <p className="mt-2 text-sm text-ink/55">{p.tagline}</p>
 
                 <div className="mt-6 flex items-end gap-2">
-                  <span className="text-4xl font-semibold tracking-tight">{fmt(p.price)}</span>
-                  <span className="mb-1 text-sm text-ink/40">total</span>
+                  <span className="text-4xl font-semibold tracking-tight">
+                    {fmt(foundingPrice(p))}
+                  </span>
+                  {foundingApplies(p) ? (
+                    <span className="mb-1 flex items-center gap-1.5 text-sm">
+                      <span className="text-ink/35 line-through">{fmt(p.price)}</span>
+                      <span className="rounded-full bg-periwinkle-100 px-2 py-0.5 text-xs font-semibold text-periwinkle-500">
+                        Founding −{FOUNDING.percentOff}%
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="mb-1 text-sm text-ink/40">total</span>
+                  )}
                 </div>
                 <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-periwinkle-50 px-3 py-1.5 text-xs font-medium text-periwinkle-500">
                   <span className="h-1.5 w-1.5 rounded-full bg-periwinkle-400" />
-                  {fmt(p.price / 2)} to start · {fmt(p.price / 2)} on launch
+                  {fmt(foundingPrice(p) / 2)} to start · {fmt(foundingPrice(p) / 2)} on launch
                 </div>
 
                 <ul className="mt-7 flex-1 space-y-3">

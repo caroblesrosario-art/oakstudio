@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Logo from "../components/Logo";
 import { plans, planById, customPlan, fmt } from "../lib/plans";
+import { FOUNDING, foundingApplies, foundingPrice } from "../lib/offer";
 import { createProject, type Project } from "../lib/projects";
 import { paypalMeLink } from "../lib/payment";
 import { deliverOrder } from "../lib/feedback";
@@ -74,8 +75,12 @@ function StartFlow() {
 
   const plan = planById(planId) ?? plans[1];
   const custom = plan.id === "custom";
-  const deposit = Math.round(plan.price / 2);
-  const balance = plan.price - deposit;
+  // The founding offer discounts the price actually charged, not just the
+  // marketing — deposit, balance, total and the PayPal amount all use it.
+  const price = foundingPrice(plan);
+  const discounted = foundingApplies(plan);
+  const deposit = Math.round(price / 2);
+  const balance = price - deposit;
 
   const canContinueDetails = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
 
@@ -110,7 +115,7 @@ function StartFlow() {
       email: email.trim() || undefined,
       plan: plan.name,
       service: plan.service,
-      total: plan.price,
+      total: price,
       brief: briefData,
       custom,
     });
@@ -122,7 +127,7 @@ function StartFlow() {
       plan: plan.name,
       service: plan.service,
       deposit,
-      total: plan.price,
+      total: price,
       brief: briefData,
     });
     setCreated(project);
@@ -191,8 +196,13 @@ function StartFlow() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">{fmt(p.price)}</p>
-                      <p className="text-xs text-ink/40">{fmt(p.price / 2)} to start</p>
+                      <p className="font-semibold">
+                        {foundingApplies(p) && (
+                          <span className="mr-1.5 text-xs font-normal text-ink/35 line-through">{fmt(p.price)}</span>
+                        )}
+                        {fmt(foundingPrice(p))}
+                      </p>
+                      <p className="text-xs text-ink/40">{fmt(foundingPrice(p) / 2)} to start</p>
                     </div>
                   </button>
                 );
@@ -448,7 +458,19 @@ function StartFlow() {
                   <p className="mt-1 font-semibold">{plan.name} plan</p>
                   <p className="text-sm text-ink/50">{plan.service}</p>
                   <div className="mt-4 space-y-2 border-t border-ink/8 pt-4 text-sm">
-                    <Row label="Project total" value={fmt(plan.price)} />
+                    <Row
+                      label={discounted ? `Project total (−${FOUNDING.percentOff}% founding)` : "Project total"}
+                      value={
+                        discounted ? (
+                          <span className="flex items-center gap-2">
+                            <span className="text-ink/40 line-through">{fmt(plan.price)}</span>
+                            {fmt(price)}
+                          </span>
+                        ) : (
+                          fmt(price)
+                        )
+                      }
+                    />
                     <Row label="Due today (50%)" value={fmt(deposit)} strong />
                     <Row label="On launch (50%)" value={fmt(balance)} muted />
                   </div>
@@ -683,7 +705,7 @@ function Row({
   muted,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   strong?: boolean;
   muted?: boolean;
 }) {

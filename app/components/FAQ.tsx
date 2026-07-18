@@ -43,6 +43,18 @@ const faqs: { q: string; a: React.ReactNode; plain: string }[] = [
       "Every plan is 50% to start and 50% on launch, paid by card or PayPal. Your project code and dashboard are created as soon as the deposit clears.",
   },
   {
+    q: "If I message you, how fast do you reply?",
+    a: (
+      <>
+        Within 1 business day — usually sooner. You message us right inside your
+        dashboard, we reply in the same thread, and the whole conversation stays
+        in one place instead of scattered across email.
+      </>
+    ),
+    plain:
+      "Within 1 business day, usually sooner. You message us inside your dashboard and we reply in the same thread, so the whole conversation stays in one place.",
+  },
+  {
     q: "What if I want changes?",
     a: (
       <>

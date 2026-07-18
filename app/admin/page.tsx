@@ -147,7 +147,14 @@ function AdminBoard({ session, onLogout }: { session: Session; onLogout: () => v
             <div className="flex items-center gap-4">
               <span className="rounded-full bg-ink px-3 py-1 font-mono text-xs text-white">{p.code}</span>
               <div>
-                <p className="font-medium">{p.client}</p>
+                <p className="flex items-center gap-2 font-medium">
+                  {p.client}
+                  {p.comments.length > 0 && p.comments[p.comments.length - 1].author === "client" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-periwinkle-100 px-2 py-0.5 text-[10px] font-medium text-periwinkle-500">
+                      <span className="h-1.5 w-1.5 rounded-full bg-periwinkle-500" /> Needs reply
+                    </span>
+                  )}
+                </p>
                 <p className="text-xs text-ink/50">
                   {p.plan} · {p.brief?.type || p.service}
                   {p.brief?.vibe ? ` · ${p.brief.vibe}` : ""}
@@ -190,10 +197,28 @@ function Detail({
   const [progress, setProgress] = useState(project.progress);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [reply, setReply] = useState("");
   const [saving, setSaving] = useState(false);
   const b = project.brief || {};
 
   const today = () => new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  // True when the last message in the thread came from the client — i.e. the
+  // ball is in the studio's court.
+  const awaitingReply =
+    project.comments.length > 0 &&
+    project.comments[project.comments.length - 1].author === "client";
+
+  const sendReply = async () => {
+    const text = reply.trim();
+    if (!text) return;
+    setSaving(true);
+    const comments = [...project.comments, { author: "studio" as const, date: today(), body: text }];
+    await patchProject(token, project.code, { comments });
+    setReply("");
+    setSaving(false);
+    await onSaved();
+  };
 
   const saveProgress = async () => {
     setSaving(true);
@@ -293,19 +318,52 @@ function Detail({
           </div>
         </div>
 
-        {project.comments.length > 0 && (
-          <div className="mt-4 rounded-2xl bg-white/70 p-5">
-            <p className="mb-3 text-xs font-medium uppercase tracking-wider text-ink/45">Client feedback</p>
+        <div className="mt-4 rounded-2xl bg-white/70 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-ink/45">Messages</p>
+            {awaitingReply && (
+              <span className="rounded-full bg-periwinkle-100 px-2 py-0.5 text-[10px] font-medium text-periwinkle-500">
+                Awaiting your reply
+              </span>
+            )}
+          </div>
+
+          {project.comments.length > 0 ? (
             <div className="space-y-2">
               {project.comments.map((c, i) => (
-                <div key={i} className="text-sm">
-                  <span className="text-ink/40">{c.author === "client" ? "Client" : "You"} · {c.date}: </span>
-                  {c.body}
+                <div key={i} className={`flex ${c.author === "studio" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                      c.author === "studio" ? "bg-ink text-white" : "bg-paper text-ink"
+                    }`}
+                  >
+                    <p className="mb-0.5 text-[10px] uppercase tracking-wider opacity-50">
+                      {c.author === "studio" ? "You" : project.client} · {c.date}
+                    </p>
+                    {c.body}
+                  </div>
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="text-sm text-ink/40">No messages yet. You can start the conversation below.</p>
+          )}
+
+          <div className="mt-4 border-t border-ink/8 pt-4">
+            <textarea
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              placeholder={`Reply to ${project.client}…`}
+              rows={2}
+              className="input resize-none"
+            />
+            <div className="mt-2 flex justify-end">
+              <button onClick={() => void sendReply()} disabled={saving || !reply.trim()} className="btn-primary !py-2.5 text-sm disabled:opacity-40">
+                {saving ? "Sending…" : "Send reply"}
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

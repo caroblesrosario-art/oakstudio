@@ -408,9 +408,15 @@ function ProjectView({ project, onExit }: { project: Project; onExit: () => void
 
             {/* Composer */}
             <div className="mt-6 border-t border-ink/8 pt-5">
-              <label className="mb-2 block text-sm font-medium text-ink/70">
-                Leave feedback anytime
-              </label>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="block text-sm font-medium text-ink/70">
+                  Message us anytime
+                </label>
+                <span className="inline-flex items-center gap-1.5 text-xs text-ink/45">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  We reply within 1 business day — often sooner
+                </span>
+              </div>
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}

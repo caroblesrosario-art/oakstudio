@@ -7,7 +7,7 @@
 //
 // Leave empty ("") to fall back to a pre-filled mailto: to STUDIO_EMAIL.
 // ─────────────────────────────────────────────────────────────
-export const FORM_ENDPOINT = ""; // e.g. "https://formspree.io/f/abcdwxyz"
+export const FORM_ENDPOINT = "https://formspree.io/f/xlgqbrng";
 export const STUDIO_EMAIL = "oakstudio.do@gmail.com";
 
 // Back-compat alias.

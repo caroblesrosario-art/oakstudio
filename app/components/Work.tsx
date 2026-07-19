@@ -1,7 +1,9 @@
 import Reveal from "./Reveal";
 import Asterisk from "./Asterisk";
+import { asset } from "../lib/asset";
 
-// Real, shipped projects — shown as live embedded previews.
+// Real, shipped projects — shown as live embedded previews. Sites that block
+// framing (X-Frame-Options) use a static `image` screenshot instead.
 const projects = [
   {
     title: "Dronematic",
@@ -14,6 +16,13 @@ const projects = [
     type: "Luxury real estate — personal brand",
     region: "Metro Atlanta, USA",
     url: "https://destinychanel.com",
+  },
+  {
+    title: "Madison",
+    type: "Commercial photography — portfolio brand",
+    region: "Santo Domingo, DR",
+    url: "https://madison.do",
+    image: "/work/madison.jpg",
   },
 ];
 
@@ -67,11 +76,13 @@ function LivePreviewCard({
   type,
   region,
   url,
+  image,
 }: {
   title: string;
   type: string;
   region: string;
   url: string;
+  image?: string;
 }) {
   return (
     <article className="group overflow-hidden rounded-[26px] border border-ink/8 bg-cream shadow-[0_30px_80px_-45px_rgba(20,18,16,0.4)] transition-transform duration-500 hover:-translate-y-1">
@@ -85,13 +96,23 @@ function LivePreviewCard({
       </div>
 
       <div className="relative">
-        <iframe
-          src={url}
-          title={`${title} — live preview`}
-          loading="lazy"
-          tabIndex={-1}
-          className="pointer-events-none h-[300px] w-full bg-black sm:h-[340px]"
-        />
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={asset(image)}
+            alt={`${title} — website preview`}
+            loading="lazy"
+            className="h-[300px] w-full object-cover object-top sm:h-[340px]"
+          />
+        ) : (
+          <iframe
+            src={url}
+            title={`${title} — live preview`}
+            loading="lazy"
+            tabIndex={-1}
+            className="pointer-events-none h-[300px] w-full bg-black sm:h-[340px]"
+          />
+        )}
         {/* click-catcher so the whole preview opens the site */}
         <a
           href={url}

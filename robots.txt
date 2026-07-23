@@ -1,0 +1,7 @@
+User-Agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /dashboard/
+
+Host: https://oakstudio.cloud
+Sitemap: https://oakstudio.cloud/sitemap.xml

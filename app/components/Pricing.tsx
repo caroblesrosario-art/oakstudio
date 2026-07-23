@@ -28,7 +28,7 @@ export default function Pricing() {
           </Reveal>
         </div>
 
-        <div className="mt-16 grid items-stretch gap-5 lg:grid-cols-3">
+        <div className="mt-16 grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((p, i) => (
             <Reveal key={p.id} delay={i * 90} className="h-full">
               <div

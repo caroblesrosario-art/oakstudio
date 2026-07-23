@@ -73,7 +73,7 @@ function StartFlow() {
     if (planById(initialPlan)) setPlanId(initialPlan);
   }, [initialPlan]);
 
-  const plan = planById(planId) ?? plans[1];
+  const plan = planById(planId) ?? plans.find((p) => p.best) ?? plans[0];
   const custom = plan.id === "custom";
   // The founding offer discounts the price actually charged, not just the
   // marketing — deposit, balance, total and the PayPal amount all use it.

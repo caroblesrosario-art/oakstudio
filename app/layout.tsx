@@ -94,7 +94,7 @@ const jsonLd = {
   slogan: "Plans, not proposals.",
   image: `${SITE}/og.png`,
   logo: `${SITE}/oak-mark.svg`,
-  priceRange: "$1,600 – $9,600",
+  priceRange: "$800 – $9,600",
   areaServed: { "@type": "Place", name: "Worldwide" },
   availableLanguage: ["en", "es"],
   serviceType: ["Web design", "App design", "Brand identity", "CRM setup", "Ad creative"],

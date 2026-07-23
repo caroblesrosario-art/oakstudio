@@ -11,6 +11,20 @@ export interface Plan {
 
 export const plans: Plan[] = [
   {
+    id: "starter",
+    name: "Starter",
+    tagline: "Get online fast with one clean page.",
+    price: 800,
+    service: "Single landing page",
+    timeline: "~1 week",
+    features: [
+      "1 clean landing page",
+      "Mobile + responsive",
+      "Your links, contact & socials",
+      "Live in about a week",
+    ],
+  },
+  {
     id: "launch",
     name: "Launch",
     tagline: "A sharp one-page presence, live fast.",
